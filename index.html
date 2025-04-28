@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเช็คชื่อนักเรียน ปวช.1 | โปดีเทคนิคระยอง</title>
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #1e88e5;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .date-selector {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .attendance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .attendance-table th, .attendance-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        .attendance-table th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        .present {
+            background-color: #c8e6c9;
+        }
+        .absent {
+            background-color: #ffcdd2;
+        }
+        .leave {
+            background-color: #fff9c4;
+        }
+        .status-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .present-btn {
+            background-color: #4caf50;
+            color: white;
+        }
+        .absent-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .leave-btn {
+            background-color: #ffeb3b;
+        }
+        .student-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #1e88e5;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            background-color: white;
+            padding: 20px;
+            border-radius: 0 5px 5px 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .summary-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .save-btn {
+            background-color: #1e88e5;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .notes-area {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 5px;
+            width: 80%;
+            max-width: 500px;
+            text-align: center;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .progress-bar {
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            background-color: #4caf50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ระบบเช็คชื่อนักเรียน ปวช.1</h1>
+        <p>วิทยาลัยอาชีวศึกษาโปดีเทคนิคระยอง</p>
+        <p>ครูประจำชั้น: สุธาวัฒน์ โน๊ตสุภา</p>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="openTab('attendance-tab')">เช็คชื่อประจำวัน</div>
+        <div class="tab" onclick="openTab('daily-report-tab')">รายงานประจำวัน</div>
+        <div class="tab" onclick="openTab('summary-tab')">สรุปผลการมาเรียน</div>
+        <div class="tab" onclick="openTab('behavior-tab')">บันทึกพฤติกรรม</div>
+    </div>
+
+    <div id="attendance-tab" class="tab-content active">
+        <div class="date-selector">
+            <label for="attendance-date">เลือกวันที่: </label>
+            <input type="date" id="attendance-date" onchange="loadAttendanceData()">
+            <span id="current-time" style="margin-left: 20px;"></span>
+        </div>
+
+        <table class="attendance-table">
+            <thead>
+                <tr>
+                    <th>เลขประจำตัว</th>
+                    <th>รูปภาพ</th>
+                    <th>ชื่อ-สกุล</th>
+                    <th>สถานะ</th>
+                    <th>เวลาบันทึก</th>
+                </tr>
+            </thead>
+            <tbody id="attendance-body">
+                <!-- ข้อมูลนักเรียนจะถูกเพิ่มที่นี่โดย JavaScript -->
+            </tbody>
+        </table>
+
+        <div class="summary-card">
+            <h3>บันทึกเพิ่มเติม</h3>
+            <textarea class="notes-area" id="daily-notes" placeholder="บันทึกพฤติกรรมหรือเหตุการณ์สำคัญ..."></textarea>
+        </div>
+
+        <button class="save-btn" onclick="saveAttendanceData()">บันทึกข้อมูล</button>
+    </div>
+
+    <div id="daily-report-tab" class="tab-content">
+        <div class="date-selector">
+            <label for="report-date">เลือกวันที่: </label>
+            <input type="date" id="report-date" onchange="generateDailyReport()">
+        </div>
+
+        <div id="daily-report-content">
+            <p>เลือกวันที่เพื่อดูรายงานประจำวัน</p>
+        </div>
+    </div>
+
+    <div id="summary-tab" class="tab-content">
+        <div id="summary-content">
+            <table class="attendance-table">
+                <thead>
+                    <tr>
+                        <th>เลขประจำตัว</th>
+                        <th>ชื่อ-สกุล</th>
+                        <th>มาเรียน</th>
+                        <th>ขาดเรียน</th>
+                        <th>ลา</th>
+                        <th>อัตราการมาเรียน</th>
+                    </tr>
+                </thead>
+                <tbody id="summary-body">
+                    <!-- สรุปผลจะถูกเพิ่มที่นี่โดย JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="behavior-tab" class="tab-content">
+        <div class="date-selector">
+            <label for="behavior-date">เลือกวันที่: </label>
+            <input type="date" id="behavior-date" onchange="loadBehaviorNotes()">
+        </div>
+
+        <div class="summary-card">
+            <h3>บันทึกพฤติกรรมนักเรียน</h3>
+            <textarea class="notes-area" id="behavior-notes" placeholder="บันทึกพฤติกรรมนักเรียน..."></textarea>
+            <button class="save-btn" onclick="saveBehaviorNotes()">บันทึกพฤติกรรม</button>
+        </div>
+
+        <div id="behavior-history">
+            <h3>ประวัติบันทึกพฤติกรรม</h3>
+            <div id="behavior-history-content"></div>
+        </div>
+    </div>
+
+    <div id="success-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>บันทึกข้อมูลเรียบร้อย</h2>
+            <p id="success-message"></p>
+            <div class="progress-bar">
+                <div class="progress" id="attendance-progress"></div>
+            </div>
+            <p id="attendance-percentage"></p>
+        </div>
+    </div>
+
+    <script>
+        // ข้อมูลนักเรียน
+        const students = [
+            { id: '0001', firstName: 'เด็กชายวานิดา', lastName: 'ฟาคิม', image: 'https://via.placeholder.com/50' },
+            { id: '0002', firstName: 'เด็กชายกล้า', lastName: 'ตามา', image: 'https://via.placeholder.com/50' },
+            { id: '0003', firstName: 'เด็กหญิงแก้ว', lastName: 'หมาดำ', image: 'https://via.placeholder.com/50' },
+            { id: '0004', firstName: 'เด็กหญิงมานี', lastName: 'มานะ', image: 'https://via.placeholder.com/50' },
+            { id: '0005', firstName: 'เด็กหญิงชูใจ', lastName: 'ชื่นมื่น', image: 'https://via.placeholder.com/50' }
+        ];
+
+        // ข้อมูลการเช็คชื่อ (เก็บใน localStorage)
+        let attendanceData = JSON.parse(localStorage.getItem('attendanceData')) || {};
+        let behaviorNotes = JSON.parse(localStorage.getItem('behaviorNotes')) || {};
+
+        // ตั้งค่าวันที่เริ่มต้นเป็นวันปัจจุบัน
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('attendance-date').value = today;
+            document.getElementById('report-date').value = today;
+            document.getElementById('behavior-date').value = today;
+
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+
+            loadAttendanceData();
+            loadBehaviorNotes();
+            generateSummaryReport();
+        });
+
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('th-TH');
+            document.getElementById('current-time').textContent = 'เวลา: ' + timeString;
+        }
+
+        function openTab(tabId) {
+            // ซ่อนแท็บทั้งหมด
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+
+            // ลบคลาส active จากแท็บทั้งหมด
+            const tabs = document.getElementsByClassName('tab');
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+            }
+
+            // แสดงแท็บที่เลือกและเพิ่มคลาส active
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            // โหลดข้อมูลตามแท็บ
+            if (tabId === 'summary-tab') {
+                generateSummaryReport();
+            } else if (tabId === 'daily-report-tab') {
+                generateDailyReport();
+            }
+        }
+
+        function loadAttendanceData() {
+            const date = document.getElementById('attendance-date').value;
+            const tbody = document.getElementById('attendance-body');
+            tbody.innerHTML = '';
+
+            students.forEach(student => {
+                const row = document.createElement('tr');
+                row.id = `student-${student.id}`;
+
+                // ตรวจสอบสถานะที่มีอยู่
+                let status = '';
+                let recordTime = '';
+                if (attendanceData[date] && attendanceData[date][student.id]) {
+                    status = attendanceData[date][student.id].status;
+                    recordTime = attendanceData[date][student.id].time || '';
+                }
+
+                // ตั้งค่าคลาสตามสถานะ
+                if (status === 'present') row.classList.add('present');
+                else if (status === 'absent') row.classList.add('absent');
+                else if (status === 'leave') row.classList.add('leave');
+
+                row.innerHTML = `
+                    <td>${student.id}</td>
+                    <td><img src="${student.image}" class="student-img" alt="${student.firstName} ${student.lastName}"></td>
+                    <td>${student.firstName} ${student.lastName}</td>
+                    <td>
+                        <button class="status-btn present-btn" onclick="setAttendanceStatus('${student.id}', 'present')">มาเรียน</button>
+                        <button class="status-btn absent-btn" onclick="setAttendanceStatus('${student.id}', 'absent')">ไม่มาเรียน</button>
+                        <button class="status-btn leave-btn" onclick="setAttendanceStatus('${student.id}', 'leave')">ลา</button>
+                    </td>
+                    <td>${recordTime}</td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            // โหลดบันทึกประจำวัน
+            if (attendanceData[date] && attendanceData[date].notes) {
+                document.getElementById('daily-notes').value = attendanceData[date].notes;
+            } else {
+                document.getElementById('daily-notes').value = '';
+            }
+        }
+
+        function setAttendanceStatus(studentId, status) {
+            const date = document.getElementById('attendance-date').value;
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('th-TH');
+
+            // เริ่มต้นข้อมูลหากยังไม่มี
+            if (!attendanceData[date]) {
+                attendanceData[date] = {};
+            }
+
+            // บันทึกสถานะ
+            attendanceData[date][studentId] = {
+                status: status,
+                time: timeString
+            };
+
+            // อัพเดทแถว
+            const row = document.getElementById(`student-${studentId}`);
+            
+            // ลบคลาสสถานะทั้งหมด
+            row.classList.remove('present', 'absent', 'leave');
+            
+            // เพิ่มคลาสตามสถานะใหม่
+            if (status === 'present') row.classList.add('present');
+            else if (status === 'absent') row.classList.add('absent');
+            else if (status === 'leave') row.classList.add('leave');
+
+            // อัพเดทเวลา
+            row.cells[4].textContent = timeString;
+        }
+
+        function saveAttendanceData() {
+            const date = document.getElementById('attendance-date').value;
+            const notes = document.getElementById('daily-notes').value;
+
+            // บันทึกโน๊ต
+            if (!attendanceData[date]) {
+                attendanceData[date] = {};
+            }
+            attendanceData[date].notes = notes;
+
+            // บันทึกใน localStorage
+            localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
+
+            // คำนวณสถิติ
+            const stats = calculateDailyStats(date);
+
+            // แสดงโมดัล
+            document.getElementById('success-message').innerHTML = `
+                บันทึกข้อมูลการเช็คชื่อวันที่ ${formatDate(date)} เรียบร้อย<br>
+                นักเรียนมาเรียน ${stats.present} คน, ขาดเรียน ${stats.absent} คน, ลา ${stats.leave} คน
+            `;
+            document.getElementById('attendance-progress').style.width = `${stats.percentage}%`;
+            document.getElementById('attendance-percentage').textContent = `อัตราการมาเรียน: ${stats.percentage}%`;
+            document.getElementById('success-modal').style.display = 'block';
+        }
+
+        function calculateDailyStats(date) {
+            let present = 0;
+            let absent = 0;
+            let leave = 0;
+
+            if (attendanceData[date]) {
+                students.forEach(student => {
+                    if (attendanceData[date][student.id]) {
+                        const status = attendanceData[date][student.id].status;
+                        if (status === 'present') present++;
+                        else if (status === 'absent') absent++;
+                        else if (status === 'leave') leave++;
+                    }
+                });
+            }
+
+            const total = students.length;
+            const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+
+            return { present, absent, leave, percentage };
+        }
+
+        function generateDailyReport() {
+            const date = document.getElementById('report-date').value;
+            const reportContent = document.getElementById('daily-report-content');
+
+            if (!attendanceData[date]) {
+                reportContent.innerHTML = `<p>ไม่มีข้อมูลการเช็คชื่อสำหรับวันที่ ${formatDate(date)}</p>`;
+                return;
+            }
+
+            const stats = calculateDailyStats(date);
+
+            let html = `
+                <h2>รายงานประจำวันที่ ${formatDate(date)}</h2>
+                <div class="summary-card">
+                    <h3>สรุปสถิติ</h3>
+                    <p>นักเรียนทั้งหมด: ${students.length} คน</p>
+                    <p>มาเรียน: ${stats.present} คน</p>
+                    <p>ขาดเรียน: ${stats.absent} คน</p>
+                    <p>ลา: ${stats.leave} คน</p>
+                    <p>อัตราการมาเรียน: ${stats.percentage}%</p>
+                </div>
+
+                <h3>รายชื่อนักเรียน</h3>
+                <table class="attendance-table">
+                    <thead>
+                        <tr>
+                            <th>เลขประจำตัว</th>
+                            <th>ชื่อ-สกุล</th>
+                            <th>สถานะ</th>
+                            <th>เวลาบันทึก</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            students.forEach(student => {
+                let statusText = 'ยังไม่เช็คชื่อ';
+                let statusClass = '';
+                let recordTime = '';
+
+                if (attendanceData[date] && attendanceData[date][student.id]) {
+                    const status = attendanceData[date][student.id].status;
+                    recordTime = attendanceData[date][student.id].time || '';
+
+                    if (status === 'present') {
+                        statusText = 'มาเรียน';
+                        statusClass = 'present';
+                    } else if (status === 'absent') {
+                        statusText = 'ขาดเรียน';
+                        statusClass = 'absent';
+                    } else if (status === 'leave') {
+                        statusText = 'ลา';
+                        statusClass = 'leave';
+                    }
+                }
+
+                html += `
+                    <tr class="${statusClass}">
+                        <td>${student.id}</td>
+                        <td>${student.firstName} ${student.lastName}</td>
+                        <td>${statusText}</td>
+                        <td>${recordTime}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            // แสดงบันทึกประจำวัน
+            if (attendanceData[date].notes) {
+                html += `
+                    <div class="summary-card">
+                        <h3>บันทึกประจำวัน</h3>
+                        <p>${attendanceData[date].notes}</p>
+                    </div>
+                `;
+            }
+
+            reportContent.innerHTML = html;
+        }
+
+        function generateSummaryReport() {
+            const tbody = document.getElementById('summary-body');
+            tbody.innerHTML = '';
+
+            // คำนวณสถิติทั้งหมด
+            const summaryStats = {};
+            students.forEach(student => {
+                summaryStats[student.id] = { present: 0, absent: 0, leave: 0 };
+            });
+
+            // นับสถิติจากทุกวัน
+            for (const date in attendanceData) {
+                if (date !== 'notes') { // หลีกเลี่ยง field notes
+                    for (const studentId in attendanceData[date]) {
+                        if (studentId !== 'notes') { // หลีกเลี่ยง field notes
+                            const status = attendanceData[date][studentId].status;
+                            if (status === 'present') summaryStats[studentId].present++;
+                            else if (status === 'absent') summaryStats[studentId].absent++;
+                            else if (status === 'leave') summaryStats[studentId].leave++;
+                        }
+                    }
+                }
+            }
+
+            // แสดงผล
+            students.forEach(student => {
+                const stats = summaryStats[student.id];
+                const totalDays = stats.present + stats.absent + stats.leave;
+                const percentage = totalDays > 0 ? Math.round((stats.present / totalDays) * 100) : 0;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${student.id}</td>
+                    <td>${student.firstName} ${student.lastName}</td>
+                    <td>${stats.present}</td>
+                    <td>${stats.absent}</td>
+                    <td>${stats.leave}</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: ${percentage}%"></div>
+                        </div>
+                        ${percentage}%
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function loadBehaviorNotes() {
+            const date = document.getElementById('behavior-date').value;
+            if (behaviorNotes[date]) {
+                document.getElementById('behavior-notes').value = behaviorNotes[date].notes || '';
+            } else {
+                document.getElementById('behavior-notes').value = '';
+            }
+
+            // โหลดประวัติบันทึกพฤติกรรม
+            loadBehaviorHistory();
+        }
+
+        function saveBehaviorNotes() {
+            const date = document.getElementById('behavior-date').value;
+            const notes = document.getElementById('behavior-notes').value;
+
+            if (!behaviorNotes[date]) {
+                behaviorNotes[date] = {};
+            }
+
+            behaviorNotes[date].notes = notes;
+            behaviorNotes[date].timestamp = new Date().toISOString();
+
+            localStorage.setItem('behaviorNotes', JSON.stringify(behaviorNotes));
+
+            alert('บันทึกพฤติกรรมเรียบร้อยแล้ว');
+            loadBehaviorHistory();
+        }
+
+        function loadBehaviorHistory() {
+            const historyContent = document.getElementById('behavior-history-content');
+            historyContent.innerHTML = '';
+
+            // เรียงลำดับวันที่จากใหม่ไปเก่า
+            const sortedDates = Object.keys(behaviorNotes).sort((a, b) => new Date(b) - new Date(a));
+
+            if (sortedDates.length === 0) {
+                historyContent.innerHTML = '<p>ไม่มีประวัติบันทึกพฤติกรรม</p>';
+                return;
+            }
+
+            let html = '<div class="behavior-history-list">';
+            
+            sortedDates.forEach(date => {
+                if (behaviorNotes[date].notes) {
+                    html += `
+                        <div class="summary-card">
+                            <h4>${formatDate(date)}</h4>
+                            <p>${behaviorNotes[date].notes}</p>
+                            <small>บันทึกเมื่อ: ${new Date(behaviorNotes[date].timestamp).toLocaleString('th-TH')}</small>
+                        </div>
+                    `;
+                }
+            });
+
+            html += '</div>';
+            historyContent.innerHTML = html;
+        }
+
+        function closeModal() {
+            document.getElementById('success-modal').style.display = 'none';
+        }
+
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            const date = new Date(dateString);
+            return date.toLocaleDateString('th-TH', options);
+        }
+
+        // ปิดโมดัลเมื่อคลิกนอกพื้นที่
+        window.onclick = function(event) {
+            const modal = document.getElementById('success-modal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
